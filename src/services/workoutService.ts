@@ -11,19 +11,17 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import { db } from "../systems/firebase";
-import type { Workout } from "../types/workout";
+// Tuodaan Exercise-tyyppi any-tyypin korvaamiseksi
+import type { Workout, Exercise } from "../types/workout";
 
 export const workoutService = {
-  // Apufunktio polun saamiseksi: users/{userId}/workouts
   getUserWorkoutsRef(userId: string) {
     return collection(db, "users", userId, "workouts");
   },
 
-  // 1. Haetaan kaikki käyttäjän treenit
   async getUserWorkouts(userId: string): Promise<Workout[]> {
     try {
       const q = query(this.getUserWorkoutsRef(userId), orderBy("date", "desc"));
-
       const querySnapshot = await getDocs(q);
 
       return querySnapshot.docs.map((docSnapshot) => {
@@ -42,12 +40,10 @@ export const workoutService = {
     }
   },
 
-  // 2. Haetaan YKSI tietty treeni (Tämä puuttui äsken!)
   async getWorkout(userId: string, workoutId: string): Promise<Workout | null> {
     try {
       const docRef = doc(db, "users", userId, "workouts", workoutId);
       const docSnap = await getDoc(docRef);
-
       if (!docSnap.exists()) return null;
 
       const data = docSnap.data();
@@ -64,7 +60,6 @@ export const workoutService = {
     }
   },
 
-  // 3. Luodaan uusi treeni
   async createWorkout(workout: Workout): Promise<string> {
     try {
       const docRef = await addDoc(this.getUserWorkoutsRef(workout.userId), {
@@ -80,7 +75,6 @@ export const workoutService = {
     }
   },
 
-  // 4. Päivitetään olemassa oleva treeni (Tämäkin puuttui!)
   async updateWorkout(
     userId: string,
     workoutId: string,
@@ -99,7 +93,6 @@ export const workoutService = {
     }
   },
 
-  // 5. Poistetaan treeni
   async deleteWorkout(userId: string, workoutId: string): Promise<void> {
     try {
       const docRef = doc(db, "users", userId, "workouts", workoutId);
@@ -107,6 +100,23 @@ export const workoutService = {
     } catch (error) {
       console.error("Error deleting workout:", error);
       throw new Error("Failed to delete workout.");
+    }
+  },
+
+  // KORJATTU: any[] korvattu Exercise[]-tyypillä
+  async createTemplate(
+    userId: string,
+    templateData: { name: string; exercises: Exercise[] },
+  ): Promise<string> {
+    try {
+      const docRef = await addDoc(collection(db, "users", userId, "programs"), {
+        ...templateData,
+        createdAt: Timestamp.now(),
+      });
+      return docRef.id;
+    } catch (error) {
+      console.error("Error creating template:", error);
+      throw new Error("Failed to save template.");
     }
   },
 };

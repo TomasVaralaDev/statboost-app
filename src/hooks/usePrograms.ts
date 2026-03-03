@@ -19,6 +19,7 @@ export const usePrograms = () => {
 
     setIsLoading(true);
     try {
+      // Tämä hakee nyt myös uudet tallennetut pohjat
       const programs = await programService.getUserPrograms(user.uid);
       setCustomPrograms(programs);
     } catch (error) {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { workoutService } from "../services/workoutService";
-import type { Workout } from "../types/workout";
+// Tuodaan Exercise-tyyppi
+import type { Workout, Exercise } from "../types/workout";
 import { useAuth } from "./useAuth";
 
 export const useWorkouts = () => {
@@ -11,18 +12,15 @@ export const useWorkouts = () => {
 
   const fetchWorkouts = useCallback(async () => {
     if (!user) return;
-
     setIsLoading(true);
     setError(null);
     try {
       const data = await workoutService.getUserWorkouts(user.uid);
       setWorkouts(data);
     } catch (err) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Treenien haku epäonnistui.");
-      }
+      setError(
+        err instanceof Error ? err.message : "Treenien haku epäonnistui.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -34,26 +32,31 @@ export const useWorkouts = () => {
 
   const addWorkout = async (workoutData: Omit<Workout, "id" | "userId">) => {
     if (!user) throw new Error("Käyttäjä ei ole kirjautunut sisään");
-
-    const newWorkout: Workout = {
-      ...workoutData,
-      userId: user.uid,
-    };
-
+    const newWorkout: Workout = { ...workoutData, userId: user.uid };
     await workoutService.createWorkout(newWorkout);
     await fetchWorkouts();
   };
 
-  // KORJATTU: Lisätty user.uid kolmanneksi argumentiksi
   const updateWorkout = async (
+    userId: string,
     id: string,
     workoutData: Omit<Workout, "id" | "userId">,
   ) => {
     if (!user) throw new Error("Käyttäjä ei ole kirjautunut sisään");
-
-    // Välitetään userId, workoutId ja data (varmista järjestys workoutService.ts:stä)
-    await workoutService.updateWorkout(user.uid, id, workoutData);
+    await workoutService.updateWorkout(userId, id, workoutData);
     await fetchWorkouts();
+  };
+
+  const deleteWorkout = async (id: string) => {
+    if (!user) throw new Error("Käyttäjä ei ole kirjautunut sisään");
+    await workoutService.deleteWorkout(user.uid, id);
+    await fetchWorkouts();
+  };
+
+  // KORJATTU: any[] korvattu Exercise[]-tyypillä
+  const saveAsTemplate = async (name: string, exercises: Exercise[]) => {
+    if (!user) throw new Error("Käyttäjä ei ole kirjautunut sisään");
+    await workoutService.createTemplate(user.uid, { name, exercises });
   };
 
   return {
@@ -62,6 +65,8 @@ export const useWorkouts = () => {
     error,
     addWorkout,
     updateWorkout,
+    deleteWorkout,
+    saveAsTemplate,
     refreshWorkouts: fetchWorkouts,
   };
 };
