@@ -1,0 +1,112 @@
+import {
+  collection,
+  addDoc,
+  query,
+  getDocs,
+  getDoc,
+  doc,
+  deleteDoc,
+  updateDoc,
+  orderBy,
+  Timestamp,
+} from "firebase/firestore";
+import { db } from "../systems/firebase";
+import type { Workout } from "../types/workout";
+
+export const workoutService = {
+  // Apufunktio polun saamiseksi: users/{userId}/workouts
+  getUserWorkoutsRef(userId: string) {
+    return collection(db, "users", userId, "workouts");
+  },
+
+  // 1. Haetaan kaikki käyttäjän treenit
+  async getUserWorkouts(userId: string): Promise<Workout[]> {
+    try {
+      const q = query(this.getUserWorkoutsRef(userId), orderBy("date", "desc"));
+
+      const querySnapshot = await getDocs(q);
+
+      return querySnapshot.docs.map((docSnapshot) => {
+        const data = docSnapshot.data();
+        return {
+          id: docSnapshot.id,
+          userId: userId,
+          name: data.name,
+          date: data.date.toDate(),
+          exercises: data.exercises,
+        } as Workout;
+      });
+    } catch (error) {
+      console.error("Error fetching workouts:", error);
+      throw new Error("Failed to load workouts.");
+    }
+  },
+
+  // 2. Haetaan YKSI tietty treeni (Tämä puuttui äsken!)
+  async getWorkout(userId: string, workoutId: string): Promise<Workout | null> {
+    try {
+      const docRef = doc(db, "users", userId, "workouts", workoutId);
+      const docSnap = await getDoc(docRef);
+
+      if (!docSnap.exists()) return null;
+
+      const data = docSnap.data();
+      return {
+        id: docSnap.id,
+        userId: userId,
+        name: data.name,
+        date: data.date.toDate(),
+        exercises: data.exercises,
+      } as Workout;
+    } catch (error) {
+      console.error("Error fetching single workout:", error);
+      throw new Error("Failed to load workout details.");
+    }
+  },
+
+  // 3. Luodaan uusi treeni
+  async createWorkout(workout: Workout): Promise<string> {
+    try {
+      const docRef = await addDoc(this.getUserWorkoutsRef(workout.userId), {
+        name: workout.name,
+        date: Timestamp.fromDate(workout.date),
+        exercises: workout.exercises,
+        createdAt: Timestamp.now(),
+      });
+      return docRef.id;
+    } catch (error) {
+      console.error("Error creating workout:", error);
+      throw new Error("Failed to save workout.");
+    }
+  },
+
+  // 4. Päivitetään olemassa oleva treeni (Tämäkin puuttui!)
+  async updateWorkout(
+    userId: string,
+    workoutId: string,
+    workoutData: Omit<Workout, "id" | "userId">,
+  ): Promise<void> {
+    try {
+      const docRef = doc(db, "users", userId, "workouts", workoutId);
+      await updateDoc(docRef, {
+        name: workoutData.name,
+        date: Timestamp.fromDate(workoutData.date),
+        exercises: workoutData.exercises,
+      });
+    } catch (error) {
+      console.error("Error updating workout:", error);
+      throw new Error("Failed to update workout.");
+    }
+  },
+
+  // 5. Poistetaan treeni
+  async deleteWorkout(userId: string, workoutId: string): Promise<void> {
+    try {
+      const docRef = doc(db, "users", userId, "workouts", workoutId);
+      await deleteDoc(docRef);
+    } catch (error) {
+      console.error("Error deleting workout:", error);
+      throw new Error("Failed to delete workout.");
+    }
+  },
+};
