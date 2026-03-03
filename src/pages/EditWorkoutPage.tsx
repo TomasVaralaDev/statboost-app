@@ -1,61 +1,73 @@
-import { useParams, useNavigate } from "react-router-dom";
-import { useWorkout } from "../hooks/useWorkout";
-import { workoutService } from "../services/workoutService";
+import { useNavigate, useParams } from "react-router-dom";
+import { useWorkouts } from "../hooks/useWorkouts";
 import { WorkoutForm } from "../components/workouts/WorkoutForm";
+import { useRestTimer } from "../hooks/useRestTimer";
 import type { Workout } from "../types/workout";
 
 export const EditWorkoutPage = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const navigate = useNavigate();
-  const { workout, isLoading, error } = useWorkout(id);
+  // updateWorkout on nyt saatavilla hookista
+  const { workouts, updateWorkout, isLoading } = useWorkouts();
+  const { isActive } = useRestTimer();
+
+  const workout = workouts.find((w) => w.id === id);
+
+  // Käsitellään lataustila ja puuttuva treeni
+  if (isLoading)
+    return (
+      <div className="p-8 text-primary animate-pulse uppercase font-black">
+        Loading Mission Data...
+      </div>
+    );
+  if (!workout)
+    return (
+      <div className="p-8 text-white uppercase font-black">
+        Workout not found.
+      </div>
+    );
 
   const handleSave = async (workoutData: Omit<Workout, "id" | "userId">) => {
-    if (!id) return;
     try {
-      await workoutService.updateWorkout(id, workoutData);
-      navigate(`/workout/${id}`); // Palataan treenin yksityiskohtiin tallennuksen jälkeen
-    } catch (err) {
-      console.error("Failed to update workout:", err);
-      alert("Could not update workout. Please try again.");
+      if (id) {
+        await updateWorkout(id, workoutData);
+        navigate("/");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Error updating session.");
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <p className="text-xl font-bold text-content-muted animate-pulse">
-          Loading workout data...
-        </p>
-      </div>
-    );
-  }
-
-  if (error || !workout) {
-    return (
-      <div className="p-4 text-danger bg-danger/20 border border-danger/50 rounded-lg">
-        {error || "Workout not found."}
-      </div>
-    );
-  }
+  const handleSetCompleted = (weight: number) => {
+    console.log("Edit mode: Set completed with weight:", weight);
+  };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center gap-4">
+    <div className="max-w-3xl mx-auto space-y-10 pb-40 px-4 md:px-0">
+      <div className="flex items-center gap-6 pt-4">
         <button
-          onClick={() => navigate(`/workout/${id}`)}
-          className="text-content-muted hover:text-primary transition-colors focus:outline-none"
+          onClick={() => navigate("/")}
+          className="w-10 h-10 flex items-center justify-center bg-surface border border-gray-800 rounded-xl text-white/40 hover:text-primary transition-all"
         >
-          ← Cancel
+          ←
         </button>
-        <h2 className="text-3xl font-bold text-content uppercase tracking-wide">
-          Edit Workout
-        </h2>
+        <div>
+          <h2 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none">
+            Edit Mission
+          </h2>
+          <p className="text-primary font-bold uppercase text-[9px] tracking-[0.4em] mt-1">
+            Status: Modifying Data
+          </p>
+        </div>
       </div>
 
       <WorkoutForm
         onSave={handleSave}
-        onCancel={() => navigate(`/workout/${id}`)}
+        onCancel={() => navigate("/")}
         initialWorkout={workout}
+        onSetCompleted={handleSetCompleted}
+        isResting={isActive}
       />
     </div>
   );

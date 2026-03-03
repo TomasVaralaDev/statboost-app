@@ -9,7 +9,6 @@ export const useWorkouts = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Käytetään useCallbackia, jotta funktiota voi turvallisesti käyttää useEffectissä
   const fetchWorkouts = useCallback(async () => {
     if (!user) return;
 
@@ -29,24 +28,32 @@ export const useWorkouts = () => {
     }
   }, [user]);
 
-  // Haetaan treenit automaattisesti, kun komponentti ladataan
   useEffect(() => {
     fetchWorkouts();
   }, [fetchWorkouts]);
 
-  // Apufunktio uuden treenin lisäämiseen
   const addWorkout = async (workoutData: Omit<Workout, "id" | "userId">) => {
     if (!user) throw new Error("Käyttäjä ei ole kirjautunut sisään");
 
-    // Poistettu turha try/catch. Mahdolliset virheet nousevat suoraan
-    // kutsuvalle komponentille (esim. DashboardPage), joka voi käsitellä ne.
     const newWorkout: Workout = {
       ...workoutData,
       userId: user.uid,
     };
 
     await workoutService.createWorkout(newWorkout);
-    await fetchWorkouts(); // Päivitetään lista onnistuneen tallennuksen jälkeen
+    await fetchWorkouts();
+  };
+
+  // KORJATTU: Lisätty user.uid kolmanneksi argumentiksi
+  const updateWorkout = async (
+    id: string,
+    workoutData: Omit<Workout, "id" | "userId">,
+  ) => {
+    if (!user) throw new Error("Käyttäjä ei ole kirjautunut sisään");
+
+    // Välitetään userId, workoutId ja data (varmista järjestys workoutService.ts:stä)
+    await workoutService.updateWorkout(user.uid, id, workoutData);
+    await fetchWorkouts();
   };
 
   return {
@@ -54,6 +61,7 @@ export const useWorkouts = () => {
     isLoading,
     error,
     addWorkout,
+    updateWorkout,
     refreshWorkouts: fetchWorkouts,
   };
 };
